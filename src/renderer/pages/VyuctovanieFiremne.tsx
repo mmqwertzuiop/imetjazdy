@@ -218,14 +218,19 @@ export default function VyuctovanieFiremne({ typ }: Props) {
     // Totals
     doc.setFont('helvetica', 'bold')
     doc.text(`Náhrada za PHM:`, lx, y); doc.text(`${result.naklady_phm.toFixed(2)} EUR`, lx + 80, y); y += 5
-    if (result.stravne > 0) { doc.setFont('helvetica', 'normal'); doc.text(`Stravné:`, lx, y); doc.text(`${result.stravne.toFixed(2)} EUR`, lx + 80, y); y += 5 }
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.text(`  Z toho DPH ${settings?.dphPHM}%:`, lx, y); doc.text(`${result.dph.toFixed(2)} EUR`, lx + 80, y); y += 4
+    doc.text(`  PHM bez DPH:`, lx, y); doc.text(`${(result.naklady_phm - result.dph).toFixed(2)} EUR`, lx + 80, y); y += 5
+    doc.setFontSize(9)
+    if (result.stravne > 0) { doc.text(`Stravné:`, lx, y); doc.text(`${result.stravne.toFixed(2)} EUR`, lx + 80, y); y += 5 }
     if (isZahranicie && result.vreckove > 0) { doc.text(`Vreckové (${settings?.vreckovePercento}%):`, lx, y); doc.text(`${result.vreckove.toFixed(2)} EUR`, lx + 80, y); y += 5 }
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(10)
     doc.text(`Náhrada celkom:`, lx, y); doc.text(`${result.naklady_celkom.toFixed(2)} EUR`, lx + 80, y); y += 5
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Z toho DPH ${settings?.dphPHM}%:`, lx, y); doc.text(`${result.dph.toFixed(2)} EUR`, lx + 80, y); y += 15
+    doc.text(`Náhrada bez DPH:`, lx, y); doc.text(`${(result.naklady_celkom - result.dph).toFixed(2)} EUR`, lx + 80, y); y += 15
 
     doc.text(`Dátum vytvorenia: ${new Date().toLocaleDateString('sk-SK')}`, 14, y)
     doc.text('Podpis: ___________________________', 120, y)
@@ -369,11 +374,13 @@ export default function VyuctovanieFiremne({ typ }: Props) {
 
             <div className="bg-gray-50 rounded-lg p-4 mt-2 space-y-1.5 text-sm max-w-md">
               <div className="flex justify-between"><span>Náhrada za PHM:</span><span>{result.naklady_phm.toFixed(2)} EUR</span></div>
+              <div className="flex justify-between text-gray-500 text-xs pl-4"><span>Z toho DPH {settings?.dphPHM}%:</span><span>{result.dph.toFixed(2)} EUR</span></div>
+              <div className="flex justify-between text-gray-500 text-xs pl-4"><span>PHM bez DPH:</span><span>{(result.naklady_phm - result.dph).toFixed(2)} EUR</span></div>
               {result.stravne > 0 && <div className="flex justify-between"><span>Stravné:</span><span>{result.stravne.toFixed(2)} EUR</span></div>}
               {isZahranicie && result.vreckove > 0 && <div className="flex justify-between"><span>Vreckové ({settings?.vreckovePercento}%):</span><span>{result.vreckove.toFixed(2)} EUR</span></div>}
               <div className="border-t border-gray-300 my-2" />
               <div className="flex justify-between font-bold text-primary text-base"><span>Náhrada celkom:</span><span>{result.naklady_celkom.toFixed(2)} EUR</span></div>
-              <div className="flex justify-between text-gray-500"><span>Z toho DPH {settings?.dphPHM}%:</span><span>{result.dph.toFixed(2)} EUR</span></div>
+              <div className="flex justify-between font-medium"><span>Náhrada celkom bez DPH:</span><span>{(result.naklady_celkom - result.dph).toFixed(2)} EUR</span></div>
             </div>
 
             <div className="flex justify-between items-end mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500">

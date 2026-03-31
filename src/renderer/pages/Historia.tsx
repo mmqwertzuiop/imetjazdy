@@ -195,6 +195,16 @@ export default function Historia() {
                     <span>{isSukromne(detail.typ) ? 'Náhrada za km:' : 'Náhrada za PHM:'}</span>
                     <span>{(detail.naklady_phm || 0).toFixed(2)} €</span>
                   </div>
+                  {!isSukromne(detail.typ) && (() => {
+                    const dphRate = (settings?.dphPHM || 23) / 100
+                    const dph = (detail.naklady_phm || 0) / (1 + dphRate) * dphRate
+                    return (
+                      <>
+                        <div className="flex justify-between text-gray-500 text-xs pl-4"><span>Z toho DPH {settings?.dphPHM || 23}%:</span><span>{dph.toFixed(2)} €</span></div>
+                        <div className="flex justify-between text-gray-500 text-xs pl-4"><span>PHM bez DPH:</span><span>{((detail.naklady_phm || 0) - dph).toFixed(2)} €</span></div>
+                      </>
+                    )
+                  })()}
                   {(detail.stravne || 0) > 0 && (
                     <div className="flex justify-between"><span>Stravné:</span><span>{detail.stravne.toFixed(2)} €</span></div>
                   )}
@@ -203,6 +213,11 @@ export default function Historia() {
                   )}
                   <div className="border-t border-gray-300 my-2" />
                   <div className="flex justify-between font-bold text-primary text-base"><span>CELKOM:</span><span>{detail.naklady_celkom.toFixed(2)} €</span></div>
+                  {!isSukromne(detail.typ) && (() => {
+                    const dphRate = (settings?.dphPHM || 23) / 100
+                    const dph = (detail.naklady_phm || 0) / (1 + dphRate) * dphRate
+                    return <div className="flex justify-between font-medium"><span>Celkom bez DPH:</span><span>{(detail.naklady_celkom - dph).toFixed(2)} €</span></div>
+                  })()}
                 </div>
 
                 <div className="flex justify-between items-end mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500">

@@ -24,9 +24,11 @@ export default function Sidebar() {
     }`
 
   return (
-    <aside className="w-60 bg-sidebar-bg min-h-screen flex flex-col shrink-0">
-      <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
-        <img src={imetLogo} alt="IMET" className="h-10 w-10 rounded" />
+    <aside className="w-72 bg-sidebar-bg min-h-screen flex flex-col shrink-0">
+      <div className="px-5 py-5 border-b border-white/10 flex items-center gap-3">
+        <div className="bg-white rounded-lg p-1.5 shrink-0">
+          <img src={imetLogo} alt="IMET" className="h-9 w-9" />
+        </div>
         <div>
           <h1 className="text-white text-lg font-bold tracking-tight">IMET Jazdy</h1>
           <p className="text-gray-500 text-xs">Cestovné náhrady</p>
