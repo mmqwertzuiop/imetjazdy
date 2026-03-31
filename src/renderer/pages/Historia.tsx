@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Trash2, Eye, Printer, X } from 'lucide-react'
 import { useReactToPrint } from 'react-to-print'
 import type { Vozidlo, VyuctovanieZaznam, Settings } from '../types'
-import imetLogo from '../assets/imet-logo.png'
+import imetLogo from '../../assets/imet-logo.png'
 
 const typLabels: Record<string, string> = {
   firemne_doma: 'Firemné auto: Doma',

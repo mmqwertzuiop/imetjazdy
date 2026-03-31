@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { useReactToPrint } from 'react-to-print'
 import jsPDF from 'jspdf'
 import type { Vozidlo, Paliva, VyuctovanieZaznam, Settings } from '../types'
-import imetLogo from '../assets/imet-logo.png'
+import imetLogo from '../../assets/imet-logo.png'
 
 const typLabels: Record<string, string> = {
   firemne_doma: 'Firemné auto: Doma',

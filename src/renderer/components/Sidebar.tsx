@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { Car, Fuel, FileText, FolderOpen, ChevronDown, ChevronRight, Settings, Scale } from 'lucide-react'
 import { useState } from 'react'
-import imetLogo from '../assets/imet-logo.png'
+import imetLogo from '../../assets/imet-logo.png'
 
 const vyuctovanieItems = [
   { path: '/vyuctovanie/firemne-doma', label: 'Firemné auto: Doma' },
