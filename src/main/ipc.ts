@@ -72,16 +72,19 @@ export function registerIpcHandlers() {
   })
 
   // Paliva
+  const defaultPaliva = {
+    diesel: 0,
+    premium_diesel: 0,
+    benzin_e10: 0,
+    benzin_e5: 0,
+    lpg: 0,
+    elektro: 0,
+    aktualizovane: null,
+  }
+
   ipcMain.handle('paliva:get', () => {
-    return readJsonFile('paliva.json', {
-      diesel: 0,
-      premium_diesel: 0,
-      benzin_e10: 0,
-      benzin_e5: 0,
-      lpg: 0,
-      elektro: 0,
-      aktualizovane: null,
-    })
+    const stored = readJsonFile('paliva.json', defaultPaliva)
+    return { ...defaultPaliva, ...stored }
   })
 
   ipcMain.handle('paliva:save', (_event, data) => {

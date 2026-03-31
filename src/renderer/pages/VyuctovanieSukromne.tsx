@@ -3,12 +3,25 @@ import { Calculator, Save, Printer, FileDown } from 'lucide-react'
 import { v4 as uuidv4 } from 'uuid'
 import { useReactToPrint } from 'react-to-print'
 import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
-import type { Vozidlo, VyuctovanieZaznam, Settings } from '../types'
+import type { Vozidlo, Paliva, VyuctovanieZaznam, Settings } from '../types'
 
 const typLabels: Record<string, string> = {
   sukromne_doma: 'Súkromné auto: Doma',
   sukromne_zahranicie: 'Súkromné auto: Zahraničie',
+}
+
+const printTitles: Record<string, string> = {
+  sukromne_doma: 'NÁHRADY ZA POUŽITIE SÚKROMNÉHO VOZIDLA: DOMÁCA PRACOVNÁ CESTA',
+  sukromne_zahranicie: 'NÁHRADY ZA POUŽITIE SÚKROMNÉHO VOZIDLA: ZAHRANIČNÁ PRACOVNÁ CESTA',
+}
+
+const palivoLabels: Record<string, string> = {
+  diesel: 'Diesel',
+  premium_diesel: 'Prémiový Diesel',
+  benzin_e10: 'Benzín E10 (95)',
+  benzin_e5: 'Benzín E5 (100)',
+  lpg: 'LPG',
+  elektro: 'Elektro',
 }
 
 interface Props {
@@ -56,6 +69,7 @@ interface Result {
 export default function VyuctovanieSukromne({ typ }: Props) {
   const isZahranicie = typ === 'sukromne_zahranicie'
   const [vozidla, setVozidla] = useState<Vozidlo[]>([])
+  const [paliva, setPaliva] = useState<Paliva | null>(null)
   const [settings, setSettings] = useState<Settings | null>(null)
   const [docNumber, setDocNumber] = useState('')
   const [form, setForm] = useState({
@@ -76,6 +90,7 @@ export default function VyuctovanieSukromne({ typ }: Props) {
 
   useEffect(() => {
     window.electronAPI.vozidla.getAll().then(setVozidla)
+    window.electronAPI.paliva.get().then(setPaliva)
     window.electronAPI.settings.get().then((s) => {
       setSettings(s)
       setDocNumber(generateDocNumber(s.lastDocNumber))
@@ -84,7 +99,7 @@ export default function VyuctovanieSukromne({ typ }: Props) {
   }, [])
 
   useEffect(() => {
-    setForm((f) => ({ meno: '', mesiac: '', odchod_z: '', prichod_do: '', cez: '', km: 0, vozidlo_id: '', sadzba_za_km: settings?.sadzbaSukromneAuto || 0.25, cas_odchodu: '', cas_prichodu: '' }))
+    setForm(() => ({ meno: '', mesiac: '', odchod_z: '', prichod_do: '', cez: '', km: 0, vozidlo_id: '', sadzba_za_km: settings?.sadzbaSukromneAuto || 0.25, cas_odchodu: '', cas_prichodu: '' }))
     setResult(null)
     setSelectedVozidlo(null)
   }, [typ])
@@ -123,8 +138,8 @@ export default function VyuctovanieSukromne({ typ }: Props) {
       cez: form.cez,
       km: form.km,
       vozidlo_id: form.vozidlo_id,
-      spotreba_pouzita: 0,
-      palivo_typ: '',
+      spotreba_pouzita: selectedVozidlo?.spotreba_tp || 0,
+      palivo_typ: selectedVozidlo?.palivo || '',
       cena_za_liter: 0,
       sadzba_za_km: form.sadzba_za_km,
       cas_odchodu: form.cas_odchodu,
@@ -145,60 +160,63 @@ export default function VyuctovanieSukromne({ typ }: Props) {
 
   const handlePrint = useReactToPrint({ contentRef: printRef })
 
+  const getCenaZaLiter = () => {
+    if (!selectedVozidlo || !paliva) return 0
+    return (paliva[selectedVozidlo.palivo as keyof Omit<Paliva, 'aktualizovane'>] as number) || 0
+  }
+
   const handlePDF = () => {
     if (!result) return
     const doc = new jsPDF()
-    let yPos = 15
+    let y = 15
     if (settings?.companyName) {
-      doc.setFontSize(18)
+      doc.setFontSize(16)
       doc.setFont('helvetica', 'bold')
-      doc.text(settings.companyName, 105, yPos, { align: 'center' })
-      yPos += 10
+      doc.text(settings.companyName, 105, y, { align: 'center' })
+      y += 10
     }
-    doc.setFontSize(14)
+    doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
-    doc.text('VYÚČTOVANIE CESTOVNÝCH NÁHRAD', 105, yPos, { align: 'center' })
-    yPos += 8
-    doc.setFontSize(10)
+    doc.text(printTitles[typ], 105, y, { align: 'center' })
+    y += 7
+    doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Doklad č.: ${docNumber}`, 105, yPos, { align: 'center' })
-    yPos += 5
-    doc.text(`${typLabels[typ]} · ${form.mesiac}`, 105, yPos, { align: 'center' })
-    yPos += 10
+    doc.text(`Doklad č.: ${docNumber}  ·  ${form.mesiac}`, 105, y, { align: 'center' })
+    y += 10
 
-    autoTable(doc, {
-      startY: yPos,
-      head: [['Meno', 'Trasa', 'KM', 'Vozidlo', 'ŠPZ', 'Sadzba/km (€)', 'Náhrada za km (€)']],
-      body: [[
-        form.meno,
-        `${form.odchod_z}${form.cez ? ' → ' + form.cez : ''} → ${form.prichod_do}`,
-        String(form.km),
-        selectedVozidlo ? `${selectedVozidlo.znacka} ${selectedVozidlo.variant}` : '-',
-        selectedVozidlo?.spz || '-',
-        form.sadzba_za_km.toFixed(3),
-        result.naklady_km.toFixed(2),
-      ]],
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [40, 52, 224] },
-    })
+    const lx = 14
+    doc.setFontSize(9)
+    doc.text(`Meno:`, lx, y); doc.text(form.meno, lx + 40, y); y += 5
+    doc.text(`Odchod z:`, lx, y); doc.text(form.odchod_z, lx + 40, y); y += 5
+    doc.text(`Príchod do:`, lx, y); doc.text(form.prichod_do, lx + 40, y); y += 5
+    doc.text(`Cez:`, lx, y); doc.text(form.cez || '-', lx + 40, y); y += 5
+    doc.text(`Vzdialenosť:`, lx, y); doc.text(`${form.km} km`, lx + 40, y); y += 8
 
-    let fY = ((doc as unknown as Record<string, unknown>).lastAutoTable as Record<string, number>)?.finalY || 80
-    fY += 8
-    doc.setFontSize(10)
-    doc.text(`Náhrada za km: ${result.naklady_km.toFixed(2)} €`, 14, fY); fY += 6
-    doc.text(`Stravné: ${result.stravne.toFixed(2)} €`, 14, fY); fY += 6
-    if (isZahranicie) { doc.text(`Vreckové (${settings?.vreckovePercento}%): ${result.vreckove.toFixed(2)} €`, 14, fY); fY += 6 }
+    if (selectedVozidlo) {
+      doc.text(`Vozidlo:`, lx, y); doc.text(`${selectedVozidlo.znacka} ${selectedVozidlo.variant}`, lx + 40, y); y += 5
+      doc.text(`ŠPZ:`, lx, y); doc.text(selectedVozidlo.spz, lx + 40, y); y += 5
+      doc.text(`Spotreba TP:`, lx, y); doc.text(`${selectedVozidlo.spotreba_tp} l/100km`, lx + 40, y); y += 5
+      doc.text(`PHM:`, lx, y); doc.text(palivoLabels[selectedVozidlo.palivo] || '', lx + 40, y); y += 5
+      doc.text(`Cena/L:`, lx, y); doc.text(`${getCenaZaLiter().toFixed(3)} EUR`, lx + 40, y); y += 5
+    }
+    doc.text(`Sadzba za 1km:`, lx, y); doc.text(`${form.sadzba_za_km.toFixed(3)} EUR`, lx + 40, y); y += 10
+
     doc.setFont('helvetica', 'bold')
-    doc.text(`CELKOM: ${result.naklady_celkom.toFixed(2)} €`, 14, fY); fY += 12
+    doc.text(`Náhrada za km:`, lx, y); doc.text(`${result.naklady_km.toFixed(2)} EUR`, lx + 80, y); y += 5
+    if (result.stravne > 0) { doc.setFont('helvetica', 'normal'); doc.text(`Stravné:`, lx, y); doc.text(`${result.stravne.toFixed(2)} EUR`, lx + 80, y); y += 5 }
+    if (isZahranicie && result.vreckove > 0) { doc.text(`Vreckové (${settings?.vreckovePercento}%):`, lx, y); doc.text(`${result.vreckove.toFixed(2)} EUR`, lx + 80, y); y += 5 }
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.text(`CELKOM:`, lx, y); doc.text(`${result.naklady_celkom.toFixed(2)} EUR`, lx + 80, y); y += 15
+
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
-    doc.text(`Dátum vytvorenia: ${new Date().toLocaleDateString('sk-SK')}`, 14, fY)
-    doc.text('Podpis: ___________________________', 14, fY + 10)
+    doc.text(`Dátum vytvorenia: ${new Date().toLocaleDateString('sk-SK')}`, 14, y)
+    doc.text('Podpis: ___________________________', 120, y)
 
     doc.save(`vyuctovanie_${docNumber}_${typ}.pdf`)
   }
 
-  const trasa = `${form.odchod_z}${form.cez ? ' → ' + form.cez : ''} → ${form.prichod_do}`
   const trvanieH = result ? Math.floor(result.trvanie_minut / 60) : 0
   const trvanieM = result ? result.trvanie_minut % 60 : 0
 
@@ -257,10 +275,16 @@ export default function VyuctovanieSukromne({ typ }: Props) {
             </select>
           </div>
           {selectedVozidlo && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ŠPZ</label>
-              <p className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">{selectedVozidlo.spz}</p>
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ŠPZ / PHM typ</label>
+                <p className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">{selectedVozidlo.spz} · {palivoLabels[selectedVozidlo.palivo]}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Spotreba TP / Cena/L</label>
+                <p className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">{selectedVozidlo.spotreba_tp} l/100km · {getCenaZaLiter().toFixed(3)} €/L</p>
+              </div>
+            </>
           )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Sadzba za 1km (€)</label>
@@ -292,45 +316,42 @@ export default function VyuctovanieSukromne({ typ }: Props) {
         <div ref={printRef}>
           <div className="bg-white rounded-card shadow-sm border border-gray-100 p-6">
             {settings?.companyName && <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">{settings.companyName}</h2>}
-            <h3 className="text-lg font-bold text-gray-900 mb-1 text-center">VYÚČTOVANIE CESTOVNÝCH NÁHRAD</h3>
-            <p className="text-sm text-gray-500 text-center">Doklad č.: {docNumber}</p>
-            <p className="text-sm text-gray-500 text-center mb-4">{typLabels[typ]} · {form.mesiac}</p>
+            <h3 className="text-base font-bold text-gray-900 mb-1 text-center">{printTitles[typ]}</h3>
+            <p className="text-sm text-gray-500 text-center mb-6">Doklad č.: {docNumber} · {form.mesiac}</p>
 
-            <table className="w-full text-sm border-collapse mb-4">
-              <thead>
-                <tr className="bg-primary text-white">
-                  <th className="px-3 py-2 text-left">Meno</th>
-                  <th className="px-3 py-2 text-left">Trasa</th>
-                  <th className="px-3 py-2 text-right">KM</th>
-                  <th className="px-3 py-2 text-left">Vozidlo</th>
-                  <th className="px-3 py-2 text-left">ŠPZ</th>
-                  <th className="px-3 py-2 text-right">Sadzba/km (€)</th>
-                  <th className="px-3 py-2 text-right">Náhrada za km (€)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-gray-200">
-                  <td className="px-3 py-2">{form.meno}</td>
-                  <td className="px-3 py-2">{trasa}</td>
-                  <td className="px-3 py-2 text-right">{form.km}</td>
-                  <td className="px-3 py-2">{selectedVozidlo ? `${selectedVozidlo.znacka} ${selectedVozidlo.variant}` : '-'}</td>
-                  <td className="px-3 py-2">{selectedVozidlo?.spz || '-'}</td>
-                  <td className="px-3 py-2 text-right">{form.sadzba_za_km.toFixed(3)}</td>
-                  <td className="px-3 py-2 text-right font-semibold">{result.naklady_km.toFixed(2)}</td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm mb-6">
+              <div className="flex"><span className="text-gray-500 w-36">Meno:</span><span className="font-medium">{form.meno}</span></div>
+              <div></div>
+              <div className="flex"><span className="text-gray-500 w-36">Odchod z:</span><span>{form.odchod_z}</span></div>
+              {selectedVozidlo && <div className="flex"><span className="text-gray-500 w-36">PHM:</span><span>{palivoLabels[selectedVozidlo.palivo]}</span></div>}
+              <div className="flex"><span className="text-gray-500 w-36">Príchod do:</span><span>{form.prichod_do}</span></div>
+              {selectedVozidlo && <div className="flex"><span className="text-gray-500 w-36">Cena/L:</span><span>{getCenaZaLiter().toFixed(3)} EUR</span></div>}
+              <div className="flex"><span className="text-gray-500 w-36">Cez:</span><span>{form.cez || '-'}</span></div>
+              {selectedVozidlo && <div className="flex"><span className="text-gray-500 w-36">Spotreba TP:</span><span>{selectedVozidlo.spotreba_tp} l/100km</span></div>}
+              <div className="flex"><span className="text-gray-500 w-36">Vzdialenosť:</span><span className="font-semibold">{form.km} km</span></div>
+              <div></div>
+              {selectedVozidlo && (
+                <>
+                  <div className="flex mt-2"><span className="text-gray-500 w-36">Vozidlo:</span><span>{selectedVozidlo.znacka} {selectedVozidlo.variant}</span></div>
+                  <div></div>
+                  <div className="flex"><span className="text-gray-500 w-36">ŠPZ:</span><span className="font-mono">{selectedVozidlo.spz}</span></div>
+                  <div></div>
+                </>
+              )}
+              <div className="flex"><span className="text-gray-500 w-36">Sadzba za 1km:</span><span>{form.sadzba_za_km.toFixed(3)} EUR</span></div>
+              <div></div>
+            </div>
 
             {result.trvanie_minut > 0 && (
               <p className="text-sm text-gray-500 mb-2">Trvanie cesty: {trvanieH} hodín {trvanieM} minút</p>
             )}
 
-            <div className="bg-gray-50 rounded-lg p-4 mt-4 space-y-1 text-sm">
-              <div className="flex justify-between"><span>Náhrada za km:</span><span>{result.naklady_km.toFixed(2)} €</span></div>
-              <div className="flex justify-between"><span>Stravné:</span><span>{result.stravne.toFixed(2)} €</span></div>
-              {isZahranicie && <div className="flex justify-between"><span>Vreckové ({settings?.vreckovePercento}%):</span><span>{result.vreckove.toFixed(2)} €</span></div>}
+            <div className="bg-gray-50 rounded-lg p-4 mt-2 space-y-1.5 text-sm max-w-md">
+              <div className="flex justify-between"><span>Náhrada za km:</span><span>{result.naklady_km.toFixed(2)} EUR</span></div>
+              {result.stravne > 0 && <div className="flex justify-between"><span>Stravné:</span><span>{result.stravne.toFixed(2)} EUR</span></div>}
+              {isZahranicie && result.vreckove > 0 && <div className="flex justify-between"><span>Vreckové ({settings?.vreckovePercento}%):</span><span>{result.vreckove.toFixed(2)} EUR</span></div>}
               <div className="border-t border-gray-300 my-2" />
-              <div className="flex justify-between font-bold text-primary text-base"><span>CELKOM:</span><span>{result.naklady_celkom.toFixed(2)} €</span></div>
+              <div className="flex justify-between font-bold text-primary text-base"><span>CELKOM:</span><span>{result.naklady_celkom.toFixed(2)} EUR</span></div>
             </div>
 
             <div className="flex justify-between items-end mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500">
