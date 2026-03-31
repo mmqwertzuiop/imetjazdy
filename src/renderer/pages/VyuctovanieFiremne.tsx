@@ -9,8 +9,6 @@ import type { Vozidlo, Paliva, VyuctovanieZaznam, Settings } from '../types'
 const typLabels: Record<string, string> = {
   firemne_doma: 'Firemné auto: Doma',
   firemne_zahranicie: 'Firemné auto: Zahraničie',
-  sukromne_doma: 'Súkromné auto: Doma',
-  sukromne_zahranicie: 'Súkromné auto: Zahraničie',
 }
 
 const palivoLabels: Record<string, string> = {
@@ -31,7 +29,41 @@ function generateDocNumber(lastDocNumber: number): string {
   return `${year}-${String(next).padStart(3, '0')}`
 }
 
+function calcDurationMinutes(casOdchodu: string, casPrichodu: string): number {
+  if (!casOdchodu || !casPrichodu) return 0
+  const [oh, om] = casOdchodu.split(':').map(Number)
+  const [ph, pm] = casPrichodu.split(':').map(Number)
+  let diff = (ph * 60 + pm) - (oh * 60 + om)
+  if (diff < 0) diff += 24 * 60
+  return diff
+}
+
+function calcStravneDoma(minutes: number, settings: Settings): number {
+  const hours = minutes / 60
+  if (hours >= 18) return settings.stravneDoma.nad18h
+  if (hours > 12) return settings.stravneDoma.od12do18h
+  if (hours >= 5) return settings.stravneDoma.od5do12h
+  return settings.stravneDoma.do5h
+}
+
+function calcStravneZahranicie(minutes: number, settings: Settings): number {
+  const hours = minutes / 60
+  if (hours > 12) return settings.stravneZahranicie.nad12h
+  if (hours >= 6) return settings.stravneZahranicie.od6do12h
+  return settings.stravneZahranicie.do6h
+}
+
+interface Result {
+  spotreba_litrov: number
+  naklady_phm: number
+  stravne: number
+  vreckove: number
+  naklady_celkom: number
+  trvanie_minut: number
+}
+
 export default function VyuctovanieFiremne({ typ }: Props) {
+  const isZahranicie = typ === 'firemne_zahranicie'
   const [vozidla, setVozidla] = useState<Vozidlo[]>([])
   const [paliva, setPaliva] = useState<Paliva | null>(null)
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -46,8 +78,10 @@ export default function VyuctovanieFiremne({ typ }: Props) {
     vozidlo_id: '',
     spotreba_pouzita: 0,
     cena_za_liter: 0,
+    cas_odchodu: '',
+    cas_prichodu: '',
   })
-  const [result, setResult] = useState<{ spotreba_litrov: number; naklady_celkom: number } | null>(null)
+  const [result, setResult] = useState<Result | null>(null)
   const [selectedVozidlo, setSelectedVozidlo] = useState<Vozidlo | null>(null)
   const printRef = useRef<HTMLDivElement>(null)
 
@@ -61,7 +95,7 @@ export default function VyuctovanieFiremne({ typ }: Props) {
   }, [])
 
   useEffect(() => {
-    setForm({ meno: '', mesiac: '', odchod_z: '', prichod_do: '', cez: '', km: 0, vozidlo_id: '', spotreba_pouzita: 0, cena_za_liter: 0 })
+    setForm({ meno: '', mesiac: '', odchod_z: '', prichod_do: '', cez: '', km: 0, vozidlo_id: '', spotreba_pouzita: 0, cena_za_liter: 0, cas_odchodu: '', cas_prichodu: '' })
     setResult(null)
     setSelectedVozidlo(null)
   }, [typ])
@@ -83,9 +117,16 @@ export default function VyuctovanieFiremne({ typ }: Props) {
   }
 
   const handleCalculate = () => {
+    if (!settings) return
     const spotreba_litrov = (form.km / 100) * form.spotreba_pouzita
-    const naklady_celkom = spotreba_litrov * form.cena_za_liter
-    setResult({ spotreba_litrov, naklady_celkom })
+    const naklady_phm = spotreba_litrov * form.cena_za_liter
+    const trvanie_minut = calcDurationMinutes(form.cas_odchodu, form.cas_prichodu)
+    const stravne = isZahranicie
+      ? calcStravneZahranicie(trvanie_minut, settings)
+      : calcStravneDoma(trvanie_minut, settings)
+    const vreckove = isZahranicie ? stravne * (settings.vreckovePercento / 100) : 0
+    const naklady_celkom = naklady_phm + stravne + vreckove
+    setResult({ spotreba_litrov, naklady_phm, stravne, vreckove, naklady_celkom, trvanie_minut })
   }
 
   const handleSaveRecord = async () => {
@@ -107,6 +148,12 @@ export default function VyuctovanieFiremne({ typ }: Props) {
       spotreba_pouzita: form.spotreba_pouzita,
       palivo_typ: selectedVozidlo?.palivo || '',
       cena_za_liter: form.cena_za_liter,
+      sadzba_za_km: 0,
+      cas_odchodu: form.cas_odchodu,
+      cas_prichodu: form.cas_prichodu,
+      stravne: result.stravne,
+      vreckove: result.vreckove,
+      naklady_phm: result.naklady_phm,
       naklady_celkom: result.naklady_celkom,
       vytvorene: new Date().toISOString(),
     }
@@ -143,31 +190,41 @@ export default function VyuctovanieFiremne({ typ }: Props) {
 
     autoTable(doc, {
       startY: yPos,
-      head: [['Meno', 'Trasa', 'KM', 'Vozidlo', 'ŠPZ', 'PHM', 'Spotreba (l)', 'Cena/L (€)', 'Náklady (€)']],
+      head: [['Meno', 'Trasa', 'KM', 'Vozidlo', 'ŠPZ', 'PHM', 'Spotreba (l)', 'Cena/L (€)', 'Náklady PHM (€)']],
       body: [[
         form.meno,
         `${form.odchod_z}${form.cez ? ' → ' + form.cez : ''} → ${form.prichod_do}`,
         String(form.km),
-        selectedVozidlo ? `${selectedVozidlo.znacka} ${selectedVozidlo.variant}` : '',
-        selectedVozidlo?.spz || '',
-        palivoLabels[selectedVozidlo?.palivo || ''] || '',
+        `${selectedVozidlo.znacka} ${selectedVozidlo.variant}`,
+        selectedVozidlo.spz,
+        palivoLabels[selectedVozidlo.palivo] || '',
         result.spotreba_litrov.toFixed(2),
         form.cena_za_liter.toFixed(3),
-        result.naklady_celkom.toFixed(2),
+        result.naklady_phm.toFixed(2),
       ]],
       styles: { fontSize: 8 },
       headStyles: { fillColor: [40, 52, 224] },
     })
 
-    const finalY = ((doc as unknown as Record<string, unknown>).lastAutoTable as Record<string, number>)?.finalY || 80
+    let fY = ((doc as unknown as Record<string, unknown>).lastAutoTable as Record<string, number>)?.finalY || 80
+    fY += 8
+    doc.setFontSize(10)
+    doc.text(`Náhrada za PHM: ${result.naklady_phm.toFixed(2)} €`, 14, fY); fY += 6
+    doc.text(`Stravné: ${result.stravne.toFixed(2)} €`, 14, fY); fY += 6
+    if (isZahranicie) { doc.text(`Vreckové (${settings?.vreckovePercento}%): ${result.vreckove.toFixed(2)} €`, 14, fY); fY += 6 }
+    doc.setFont('helvetica', 'bold')
+    doc.text(`CELKOM: ${result.naklady_celkom.toFixed(2)} €`, 14, fY); fY += 12
+    doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
-    doc.text(`Dátum vytvorenia: ${new Date().toLocaleDateString('sk-SK')}`, 14, finalY + 20)
-    doc.text('Podpis: ___________________________', 14, finalY + 30)
+    doc.text(`Dátum vytvorenia: ${new Date().toLocaleDateString('sk-SK')}`, 14, fY)
+    doc.text('Podpis: ___________________________', 14, fY + 10)
 
     doc.save(`vyuctovanie_${docNumber}_${typ}.pdf`)
   }
 
   const trasa = `${form.odchod_z}${form.cez ? ' → ' + form.cez : ''} → ${form.prichod_do}`
+  const trvanieH = result ? Math.floor(result.trvanie_minut / 60) : 0
+  const trvanieM = result ? result.trvanie_minut % 60 : 0
 
   return (
     <div>
@@ -177,164 +234,97 @@ export default function VyuctovanieFiremne({ typ }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Číslo dokladu</label>
-            <input
-              value={docNumber}
-              readOnly
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-mono cursor-not-allowed"
-            />
+            <input value={docNumber} readOnly className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-mono cursor-not-allowed" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Meno</label>
-            <input
-              value={form.meno}
-              onChange={(e) => setForm({ ...form, meno: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
+            <input value={form.meno} onChange={(e) => setForm({ ...form, meno: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Mesiac</label>
-            <input
-              type="month"
-              value={form.mesiac}
-              onChange={(e) => setForm({ ...form, mesiac: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
+            <input type="month" value={form.mesiac} onChange={(e) => setForm({ ...form, mesiac: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Odchod Z</label>
-            <input
-              value={form.odchod_z}
-              onChange={(e) => setForm({ ...form, odchod_z: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
+            <input value={form.odchod_z} onChange={(e) => setForm({ ...form, odchod_z: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Príchod DO</label>
-            <input
-              value={form.prichod_do}
-              onChange={(e) => setForm({ ...form, prichod_do: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
+            <input value={form.prichod_do} onChange={(e) => setForm({ ...form, prichod_do: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Cez (nepovinné)</label>
-            <input
-              value={form.cez}
-              onChange={(e) => setForm({ ...form, cez: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
+            <input value={form.cez} onChange={(e) => setForm({ ...form, cez: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">KM</label>
-            <input
-              type="number"
-              value={form.km || ''}
-              onChange={(e) => setForm({ ...form, km: parseFloat(e.target.value) || 0 })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            />
+            <input type="number" value={form.km || ''} onChange={(e) => setForm({ ...form, km: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Čas odchodu</label>
+            <input type="time" value={form.cas_odchodu} onChange={(e) => setForm({ ...form, cas_odchodu: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Čas príchodu</label>
+            <input type="time" value={form.cas_prichodu} onChange={(e) => setForm({ ...form, cas_prichodu: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Vozidlo</label>
-            <select
-              value={form.vozidlo_id}
-              onChange={(e) => handleVozidloChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-            >
+            <select value={form.vozidlo_id} onChange={(e) => handleVozidloChange(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary">
               <option value="">Vyberte vozidlo</option>
               {vozidla.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.znacka} {v.variant} ({v.spz})
-                </option>
+                <option key={v.id} value={v.id}>{v.znacka} {v.variant} ({v.spz})</option>
               ))}
             </select>
           </div>
-
           {selectedVozidlo && (
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Spotreba TP (l/100km)</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={form.spotreba_pouzita || ''}
-                  onChange={(e) => setForm({ ...form, spotreba_pouzita: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
+                <input type="number" step="0.1" value={form.spotreba_pouzita || ''} onChange={(e) => setForm({ ...form, spotreba_pouzita: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">ŠPZ / PHM typ</label>
-                <p className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">
-                  {selectedVozidlo.spz} · {palivoLabels[selectedVozidlo.palivo]}
-                </p>
+                <p className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-700">{selectedVozidlo.spz} · {palivoLabels[selectedVozidlo.palivo]}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Cena za 1L (€)</label>
-                <input
-                  type="number"
-                  step="0.001"
-                  value={form.cena_za_liter || ''}
-                  onChange={(e) => setForm({ ...form, cena_za_liter: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
+                <input type="number" step="0.001" value={form.cena_za_liter || ''} onChange={(e) => setForm({ ...form, cena_za_liter: parseFloat(e.target.value) || 0 })} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" />
               </div>
             </>
           )}
         </div>
       </div>
 
-      {/* Buttons */}
       <div className="flex gap-3 mb-6 no-print">
-        <button
-          onClick={handleCalculate}
-          className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
-        >
-          <Calculator size={16} />
-          Vypočítať
+        <button onClick={handleCalculate} className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          <Calculator size={16} /> Vypočítať
         </button>
         {result && (
           <>
-            <button
-              onClick={handleSaveRecord}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"
-            >
-              <Save size={16} />
-              Uložiť záznam
+            <button onClick={handleSaveRecord} className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors">
+              <Save size={16} /> Uložiť záznam
             </button>
-            <button
-              onClick={() => handlePrint()}
-              className="flex items-center gap-2 border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
-              <Printer size={16} />
-              Tlačiť
+            <button onClick={() => handlePrint()} className="flex items-center gap-2 border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+              <Printer size={16} /> Tlačiť
             </button>
-            <button
-              onClick={handlePDF}
-              className="flex items-center gap-2 border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-            >
-              <FileDown size={16} />
-              Uložiť PDF
+            <button onClick={handlePDF} className="flex items-center gap-2 border border-gray-300 text-gray-700 px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+              <FileDown size={16} /> Uložiť PDF
             </button>
           </>
         )}
       </div>
 
-      {/* Result */}
       {result && (
         <div ref={printRef}>
           <div className="bg-white rounded-card shadow-sm border border-gray-100 p-6">
-            {settings?.companyName && (
-              <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">{settings.companyName}</h2>
-            )}
+            {settings?.companyName && <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">{settings.companyName}</h2>}
             <h3 className="text-lg font-bold text-gray-900 mb-1 text-center">VYÚČTOVANIE CESTOVNÝCH NÁHRAD</h3>
-            <p className="text-sm text-gray-500 text-center">
-              Doklad č.: {docNumber}
-            </p>
-            <p className="text-sm text-gray-500 text-center mb-4">
-              {typLabels[typ]} · {form.mesiac}
-            </p>
+            <p className="text-sm text-gray-500 text-center">Doklad č.: {docNumber}</p>
+            <p className="text-sm text-gray-500 text-center mb-4">{typLabels[typ]} · {form.mesiac}</p>
 
             <table className="w-full text-sm border-collapse mb-4">
               <thead>
@@ -347,7 +337,7 @@ export default function VyuctovanieFiremne({ typ }: Props) {
                   <th className="px-3 py-2 text-left">PHM</th>
                   <th className="px-3 py-2 text-right">Spotreba (l)</th>
                   <th className="px-3 py-2 text-right">Cena/L (€)</th>
-                  <th className="px-3 py-2 text-right">Náklady (€)</th>
+                  <th className="px-3 py-2 text-right">Náklady PHM (€)</th>
                 </tr>
               </thead>
               <tbody>
@@ -360,10 +350,22 @@ export default function VyuctovanieFiremne({ typ }: Props) {
                   <td className="px-3 py-2">{palivoLabels[selectedVozidlo?.palivo || '']}</td>
                   <td className="px-3 py-2 text-right font-semibold">{result.spotreba_litrov.toFixed(2)}</td>
                   <td className="px-3 py-2 text-right">{form.cena_za_liter.toFixed(3)}</td>
-                  <td className="px-3 py-2 text-right font-bold text-primary">{result.naklady_celkom.toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right font-semibold">{result.naklady_phm.toFixed(2)}</td>
                 </tr>
               </tbody>
             </table>
+
+            {result.trvanie_minut > 0 && (
+              <p className="text-sm text-gray-500 mb-2">Trvanie cesty: {trvanieH} hodín {trvanieM} minút</p>
+            )}
+
+            <div className="bg-gray-50 rounded-lg p-4 mt-4 space-y-1 text-sm">
+              <div className="flex justify-between"><span>Náhrada za PHM:</span><span>{result.naklady_phm.toFixed(2)} €</span></div>
+              <div className="flex justify-between"><span>Stravné:</span><span>{result.stravne.toFixed(2)} €</span></div>
+              {isZahranicie && <div className="flex justify-between"><span>Vreckové ({settings?.vreckovePercento}%):</span><span>{result.vreckove.toFixed(2)} €</span></div>}
+              <div className="border-t border-gray-300 my-2" />
+              <div className="flex justify-between font-bold text-primary text-base"><span>CELKOM:</span><span>{result.naklady_celkom.toFixed(2)} €</span></div>
+            </div>
 
             <div className="flex justify-between items-end mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500">
               <p>Dátum vytvorenia: {new Date().toLocaleDateString('sk-SK')}</p>

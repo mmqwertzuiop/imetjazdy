@@ -33,13 +33,36 @@ export interface VyuctovanieZaznam {
   spotreba_pouzita: number
   palivo_typ: string
   cena_za_liter: number
+  sadzba_za_km: number
+  cas_odchodu: string
+  cas_prichodu: string
+  stravne: number
+  vreckove: number
+  naklady_phm: number
   naklady_celkom: number
   vytvorene: string
+}
+
+export interface StravneDoma {
+  do5h: number
+  od5do12h: number
+  od12do18h: number
+  nad18h: number
+}
+
+export interface StravneZahranicie {
+  do6h: number
+  od6do12h: number
+  nad12h: number
 }
 
 export interface Settings {
   lastDocNumber: number
   companyName: string
+  sadzbaSukromneAuto: number
+  stravneDoma: StravneDoma
+  stravneZahranicie: StravneZahranicie
+  vreckovePercento: number
 }
 
 export interface ElectronAPI {

@@ -5,6 +5,15 @@ import path from 'path'
 const userDataPath = app.getPath('userData')
 const dataDir = path.join(userDataPath, 'imetjazdy-data')
 
+const defaultSettings = {
+  lastDocNumber: 0,
+  companyName: '',
+  sadzbaSukromneAuto: 0.25,
+  stravneDoma: { do5h: 0, od5do12h: 4.00, od12do18h: 6.00, nad18h: 9.30 },
+  stravneZahranicie: { do6h: 0, od6do12h: 9.00, nad12h: 18.00 },
+  vreckovePercento: 10,
+}
+
 function ensureDataDir() {
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true })
@@ -26,6 +35,29 @@ function writeJsonFile<T>(filename: string, data: T): void {
   ensureDataDir()
   const filePath = path.join(dataDir, filename)
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
+}
+
+function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
+  const result = { ...target }
+  for (const key of Object.keys(target)) {
+    if (key in source) {
+      if (
+        typeof target[key] === 'object' && target[key] !== null && !Array.isArray(target[key]) &&
+        typeof source[key] === 'object' && source[key] !== null && !Array.isArray(source[key])
+      ) {
+        result[key] = deepMerge(target[key] as Record<string, unknown>, source[key] as Record<string, unknown>)
+      } else {
+        result[key] = source[key]
+      }
+    }
+  }
+  // Also copy keys from source that don't exist in target
+  for (const key of Object.keys(source)) {
+    if (!(key in target)) {
+      result[key] = source[key]
+    }
+  }
+  return result
 }
 
 export function registerIpcHandlers() {
@@ -66,12 +98,14 @@ export function registerIpcHandlers() {
     return true
   })
 
-  // Settings
+  // Settings - merge with defaults to handle new fields
   ipcMain.handle('settings:get', () => {
-    return readJsonFile('settings.json', {
-      lastDocNumber: 0,
-      companyName: '',
-    })
+    const stored = readJsonFile('settings.json', defaultSettings)
+    const merged = deepMerge(
+      defaultSettings as unknown as Record<string, unknown>,
+      stored as unknown as Record<string, unknown>,
+    )
+    return merged
   })
 
   ipcMain.handle('settings:save', (_event, data) => {
