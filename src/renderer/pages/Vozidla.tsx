@@ -17,7 +17,8 @@ const emptyVozidlo: Omit<Vozidlo, 'id'> = {
 const palivoLabels: Record<string, string> = {
   diesel: 'Diesel',
   premium_diesel: 'Prémiový Diesel',
-  benzin: 'Benzín',
+  benzin_e10: 'Benzín E10 (95)',
+  benzin_e5: 'Benzín E5 (100)',
   lpg: 'LPG',
   elektro: 'Elektro',
 }
@@ -211,7 +212,8 @@ export default function Vozidla() {
                   >
                     <option value="diesel">Diesel</option>
                     <option value="premium_diesel">Prémiový Diesel</option>
-                    <option value="benzin">Benzín</option>
+                    <option value="benzin_e10">Benzín E10 (95)</option>
+                    <option value="benzin_e5">Benzín E5 (100)</option>
                     <option value="lpg">LPG</option>
                     <option value="elektro">Elektro</option>
                   </select>

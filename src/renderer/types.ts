@@ -4,7 +4,7 @@ export interface Vozidlo {
   variant: string
   spz: string
   druh: 'osobne' | 'nakladne'
-  palivo: 'diesel' | 'premium_diesel' | 'benzin' | 'lpg' | 'elektro'
+  palivo: 'diesel' | 'premium_diesel' | 'benzin_e10' | 'benzin_e5' | 'lpg' | 'elektro'
   spotreba_tp: number
   objem_motora: number
   aktivne: boolean
@@ -13,7 +13,8 @@ export interface Vozidlo {
 export interface Paliva {
   diesel: number
   premium_diesel: number
-  benzin: number
+  benzin_e10: number
+  benzin_e5: number
   lpg: number
   elektro: number
   aktualizovane: string | null

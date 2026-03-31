@@ -14,7 +14,8 @@ const typLabels: Record<string, string> = {
 const palivoLabels: Record<string, string> = {
   diesel: 'Diesel',
   premium_diesel: 'Prémiový Diesel',
-  benzin: 'Benzín',
+  benzin_e10: 'Benzín E10 (95)',
+  benzin_e5: 'Benzín E5 (100)',
   lpg: 'LPG',
   elektro: 'Elektro',
 }

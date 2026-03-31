@@ -76,7 +76,8 @@ export function registerIpcHandlers() {
     return readJsonFile('paliva.json', {
       diesel: 0,
       premium_diesel: 0,
-      benzin: 0,
+      benzin_e10: 0,
+      benzin_e5: 0,
       lpg: 0,
       elektro: 0,
       aktualizovane: null,

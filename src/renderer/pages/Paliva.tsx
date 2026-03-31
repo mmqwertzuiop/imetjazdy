@@ -5,7 +5,8 @@ import type { Paliva as PalivaType } from '../types'
 const palivoConfig = [
   { key: 'diesel' as const, label: 'Diesel', icon: '🟡' },
   { key: 'premium_diesel' as const, label: 'Prémiový Diesel', icon: '🟠' },
-  { key: 'benzin' as const, label: 'Benzín', icon: '🟢' },
+  { key: 'benzin_e10' as const, label: 'Benzín E10 (95)', icon: '🟢' },
+  { key: 'benzin_e5' as const, label: 'Benzín E5 (100)', icon: '🟩' },
   { key: 'lpg' as const, label: 'LPG', icon: '🔵' },
   { key: 'elektro' as const, label: 'Elektro', icon: '⚡' },
 ]
