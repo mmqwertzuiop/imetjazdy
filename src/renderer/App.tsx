@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import Vozidla from './pages/Vozidla'
 import Paliva from './pages/Paliva'
+import Sadzby from './pages/Sadzby'
 import VyuctovanieFiremne from './pages/VyuctovanieFiremne'
 import VyuctovanieSukromne from './pages/VyuctovanieSukromne'
 import Historia from './pages/Historia'
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/vozidla" replace />} />
         <Route path="/vozidla" element={<Vozidla />} />
         <Route path="/paliva" element={<Paliva />} />
+        <Route path="/sadzby" element={<Sadzby />} />
         <Route path="/vyuctovanie/firemne-doma" element={<VyuctovanieFiremne typ="firemne_doma" />} />
         <Route path="/vyuctovanie/firemne-zahranicie" element={<VyuctovanieFiremne typ="firemne_zahranicie" />} />
         <Route path="/vyuctovanie/sukromne-doma" element={<VyuctovanieSukromne typ="sukromne_doma" />} />

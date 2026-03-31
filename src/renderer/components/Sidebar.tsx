@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { Car, Fuel, FileText, FolderOpen, ChevronDown, ChevronRight, Settings } from 'lucide-react'
+import { Car, Fuel, FileText, FolderOpen, ChevronDown, ChevronRight, Settings, Scale } from 'lucide-react'
 import { useState } from 'react'
 
 const vyuctovanieItems = [
@@ -38,6 +38,11 @@ export default function Sidebar() {
         <NavLink to="/paliva" className={({ isActive }) => linkClass(isActive)}>
           <Fuel size={18} />
           Ceny palív
+        </NavLink>
+
+        <NavLink to="/sadzby" className={({ isActive }) => linkClass(isActive)}>
+          <Scale size={18} />
+          Sadzby náhrad
         </NavLink>
 
         <div>
