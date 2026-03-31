@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Trash2, Eye, Printer, X } from 'lucide-react'
 import { useReactToPrint } from 'react-to-print'
 import type { Vozidlo, VyuctovanieZaznam, Settings } from '../types'
+import imetLogo from '../assets/imet-logo.png'
 
 const typLabels: Record<string, string> = {
   firemne_doma: 'Firemné auto: Doma',
@@ -120,10 +121,18 @@ export default function Historia() {
 
             <div ref={printRef}>
               <div className="p-4">
-                {settings?.companyName && <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">{settings.companyName}</h2>}
-                <h3 className="text-lg font-bold text-gray-900 mb-1 text-center">VYÚČTOVANIE CESTOVNÝCH NÁHRAD</h3>
-                <p className="text-sm text-gray-500 text-center">Doklad č.: {detail.cislo_dokladu || '-'}</p>
-                <p className="text-sm text-gray-500 text-center mb-4">{typLabels[detail.typ]} · {detail.mesiac}</p>
+                <div className="flex items-start justify-between mb-4">
+                  <img src={imetLogo} alt="IMET" className="h-14 w-14" />
+                  <div className="text-center flex-1 px-4">
+                    {settings?.companyName && <h2 className="text-lg font-bold text-gray-900">{settings.companyName}</h2>}
+                    <h3 className="text-sm font-bold text-gray-900">VYÚČTOVANIE CESTOVNÝCH NÁHRAD</h3>
+                    <p className="text-xs text-gray-500">{typLabels[detail.typ]}</p>
+                  </div>
+                  <div className="text-right text-sm text-gray-500">
+                    <p className="font-mono">{detail.cislo_dokladu || '-'}</p>
+                    <p>{detail.mesiac}</p>
+                  </div>
+                </div>
 
                 {isSukromne(detail.typ) ? (
                   <table className="w-full text-sm border-collapse mb-4">

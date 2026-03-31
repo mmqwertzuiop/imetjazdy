@@ -1,7 +1,7 @@
 {
   "name": "imetjazdy",
   "version": "1.0.0",
-  "description": "iMetJazdy - Výúčtovanie cestovných náhrad",
+  "description": "IMET Jazdy - Výúčtovanie cestovných náhrad",
   "main": "dist-electron/main/index.js",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,7 @@
   },
   "build": {
     "appId": "com.imetjazdy.app",
-    "productName": "iMetJazdy",
+    "productName": "IMET Jazdy",
     "directories": {
       "output": "release"
     },
@@ -48,6 +48,7 @@
     "autoprefixer": "^10.4.20",
     "electron": "^34.0.1",
     "electron-builder": "^25.1.8",
+    "pngjs": "^7.0.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3",

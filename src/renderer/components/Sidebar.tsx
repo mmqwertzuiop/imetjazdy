@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { Car, Fuel, FileText, FolderOpen, ChevronDown, ChevronRight, Settings, Scale } from 'lucide-react'
 import { useState } from 'react'
+import imetLogo from '../assets/imet-logo.png'
 
 const vyuctovanieItems = [
   { path: '/vyuctovanie/firemne-doma', label: 'Firemné auto: Doma' },
@@ -24,9 +25,12 @@ export default function Sidebar() {
 
   return (
     <aside className="w-60 bg-sidebar-bg min-h-screen flex flex-col shrink-0">
-      <div className="px-6 py-5 border-b border-white/10">
-        <h1 className="text-white text-xl font-bold tracking-tight">iMetJazdy</h1>
-        <p className="text-gray-500 text-xs mt-0.5">Cestovné náhrady</p>
+      <div className="px-5 py-4 border-b border-white/10 flex items-center gap-3">
+        <img src={imetLogo} alt="IMET" className="h-10 w-10 rounded" />
+        <div>
+          <h1 className="text-white text-lg font-bold tracking-tight">IMET Jazdy</h1>
+          <p className="text-gray-500 text-xs">Cestovné náhrady</p>
+        </div>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1">

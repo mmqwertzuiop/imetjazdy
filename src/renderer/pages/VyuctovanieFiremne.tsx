@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { useReactToPrint } from 'react-to-print'
 import jsPDF from 'jspdf'
 import type { Vozidlo, Paliva, VyuctovanieZaznam, Settings } from '../types'
+import imetLogo from '../assets/imet-logo.png'
 
 const typLabels: Record<string, string> = {
   firemne_doma: 'Firemné auto: Doma',
@@ -178,21 +179,22 @@ export default function VyuctovanieFiremne({ typ }: Props) {
   const handlePDF = () => {
     if (!result || !selectedVozidlo) return
     const doc = new jsPDF()
-    let y = 15
-    if (settings?.companyName) {
-      doc.setFontSize(16)
-      doc.setFont('helvetica', 'bold')
-      doc.text(settings.companyName, 105, y, { align: 'center' })
-      y += 10
-    }
+    // Header: logo left, title center, doklad right
+    doc.addImage(imetLogo, 'PNG', 14, 10, 15, 15)
+    let y = 14
     doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
+    if (settings?.companyName) {
+      doc.text(settings.companyName, 105, y, { align: 'center' })
+      y += 6
+    }
+    doc.setFontSize(10)
     doc.text(printTitles[typ], 105, y, { align: 'center' })
-    y += 7
-    doc.setFontSize(9)
+    doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Doklad č.: ${docNumber}  ·  ${form.mesiac}`, 105, y, { align: 'center' })
-    y += 10
+    doc.text(`Doklad č.: ${docNumber}`, 196, 14, { align: 'right' })
+    doc.text(form.mesiac, 196, 19, { align: 'right' })
+    y = Math.max(y + 10, 32)
 
     // Left column
     const lx = 14
@@ -330,9 +332,17 @@ export default function VyuctovanieFiremne({ typ }: Props) {
       {result && (
         <div ref={printRef}>
           <div className="bg-white rounded-card shadow-sm border border-gray-100 p-6">
-            {settings?.companyName && <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">{settings.companyName}</h2>}
-            <h3 className="text-base font-bold text-gray-900 mb-1 text-center">{printTitles[typ]}</h3>
-            <p className="text-sm text-gray-500 text-center mb-6">Doklad č.: {docNumber} · {form.mesiac}</p>
+            <div className="flex items-start justify-between mb-4">
+              <img src={imetLogo} alt="IMET" className="h-14 w-14" />
+              <div className="text-center flex-1 px-4">
+                {settings?.companyName && <h2 className="text-lg font-bold text-gray-900">{settings.companyName}</h2>}
+                <h3 className="text-sm font-bold text-gray-900">{printTitles[typ]}</h3>
+              </div>
+              <div className="text-right text-sm text-gray-500">
+                <p className="font-mono">{docNumber}</p>
+                <p>{form.mesiac}</p>
+              </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm mb-6">
               <div className="flex"><span className="text-gray-500 w-36">Meno:</span><span className="font-medium">{form.meno}</span></div>
