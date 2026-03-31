@@ -64,6 +64,8 @@ export interface Settings {
   stravneDoma: StravneDoma
   stravneZahranicie: StravneZahranicie
   vreckovePercento: number
+  dphPHM: number
+  dphUbytovanie: number
 }
 
 export interface ElectronAPI {

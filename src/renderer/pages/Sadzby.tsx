@@ -111,6 +111,23 @@ export default function Sadzby() {
           </div>
         </div>
 
+        {/* DPH sadzby */}
+        <div className="bg-white rounded-card shadow-sm border border-gray-100 p-6">
+          <h3 className="text-base font-semibold text-gray-900 mb-4">DPH sadzby</h3>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600 w-40">DPH - pohonné hmoty:</span>
+              <input type="number" step="1" value={settings.dphPHM} onChange={(e) => setSettings({ ...settings, dphPHM: parseFloat(e.target.value) || 0 })} className={inputClass} />
+              <span className="text-sm text-gray-500">%</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600 w-40">DPH - ubytovanie:</span>
+              <input type="number" step="1" value={settings.dphUbytovanie} onChange={(e) => setSettings({ ...settings, dphUbytovanie: parseFloat(e.target.value) || 0 })} className={inputClass} />
+              <span className="text-sm text-gray-500">%</span>
+            </div>
+          </div>
+        </div>
+
         <button
           onClick={handleSave}
           className="flex items-center gap-2 bg-primary hover:bg-primary-dark text-white px-5 py-2.5 rounded-lg text-sm font-medium transition-colors"

@@ -126,7 +126,8 @@ export default function VyuctovanieFiremne({ typ }: Props) {
     if (!settings) return
     const spotreba_litrov = (form.km / 100) * form.spotreba_pouzita
     const naklady_phm = spotreba_litrov * form.cena_za_liter
-    const dph = naklady_phm * 0.23
+    const dphRate = settings.dphPHM / 100
+    const dph = naklady_phm / (1 + dphRate) * dphRate
     const trvanie_minut = calcDurationMinutes(form.cas_odchodu, form.cas_prichodu)
     const stravne = isZahranicie
       ? calcStravneZahranicie(trvanie_minut, settings)
@@ -222,7 +223,7 @@ export default function VyuctovanieFiremne({ typ }: Props) {
     doc.text(`Náhrada celkom:`, lx, y); doc.text(`${result.naklady_celkom.toFixed(2)} EUR`, lx + 80, y); y += 5
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Z toho DPH 23%:`, lx, y); doc.text(`${result.dph.toFixed(2)} EUR`, lx + 80, y); y += 15
+    doc.text(`Z toho DPH ${settings?.dphPHM}%:`, lx, y); doc.text(`${result.dph.toFixed(2)} EUR`, lx + 80, y); y += 15
 
     doc.text(`Dátum vytvorenia: ${new Date().toLocaleDateString('sk-SK')}`, 14, y)
     doc.text('Podpis: ___________________________', 120, y)
@@ -362,7 +363,7 @@ export default function VyuctovanieFiremne({ typ }: Props) {
               {isZahranicie && result.vreckove > 0 && <div className="flex justify-between"><span>Vreckové ({settings?.vreckovePercento}%):</span><span>{result.vreckove.toFixed(2)} EUR</span></div>}
               <div className="border-t border-gray-300 my-2" />
               <div className="flex justify-between font-bold text-primary text-base"><span>Náhrada celkom:</span><span>{result.naklady_celkom.toFixed(2)} EUR</span></div>
-              <div className="flex justify-between text-gray-500"><span>Z toho DPH 23%:</span><span>{result.dph.toFixed(2)} EUR</span></div>
+              <div className="flex justify-between text-gray-500"><span>Z toho DPH {settings?.dphPHM}%:</span><span>{result.dph.toFixed(2)} EUR</span></div>
             </div>
 
             <div className="flex justify-between items-end mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500">

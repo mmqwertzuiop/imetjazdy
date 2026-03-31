@@ -12,6 +12,8 @@ const defaultSettings = {
   stravneDoma: { do5h: 0, od5do12h: 4.00, od12do18h: 6.00, nad18h: 9.30 },
   stravneZahranicie: { do6h: 0, od6do12h: 9.00, nad12h: 18.00 },
   vreckovePercento: 10,
+  dphPHM: 23,
+  dphUbytovanie: 6,
 }
 
 function ensureDataDir() {
