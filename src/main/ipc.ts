@@ -65,4 +65,17 @@ export function registerIpcHandlers() {
     writeJsonFile('vyuctovanie.json', data)
     return true
   })
+
+  // Settings
+  ipcMain.handle('settings:get', () => {
+    return readJsonFile('settings.json', {
+      lastDocNumber: 0,
+      companyName: '',
+    })
+  })
+
+  ipcMain.handle('settings:save', (_event, data) => {
+    writeJsonFile('settings.json', data)
+    return true
+  })
 }

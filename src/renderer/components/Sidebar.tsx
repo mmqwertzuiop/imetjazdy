@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { Car, Fuel, FileText, FolderOpen, ChevronDown, ChevronRight } from 'lucide-react'
+import { Car, Fuel, FileText, FolderOpen, ChevronDown, ChevronRight, Settings } from 'lucide-react'
 import { useState } from 'react'
 
 const vyuctovanieItems = [
@@ -82,6 +82,13 @@ export default function Sidebar() {
           História
         </NavLink>
       </nav>
+
+      <div className="px-3 pb-4 border-t border-white/10 pt-3">
+        <NavLink to="/nastavenia" className={({ isActive }) => linkClass(isActive)}>
+          <Settings size={18} />
+          Nastavenia
+        </NavLink>
+      </div>
     </aside>
   )
 }

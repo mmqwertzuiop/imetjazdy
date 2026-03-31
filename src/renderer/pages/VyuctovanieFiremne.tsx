@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { useReactToPrint } from 'react-to-print'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import type { Vozidlo, Paliva, VyuctovanieZaznam } from '../types'
+import type { Vozidlo, Paliva, VyuctovanieZaznam, Settings } from '../types'
 
 const typLabels: Record<string, string> = {
   firemne_doma: 'Firemné auto: Doma',
@@ -25,9 +25,17 @@ interface Props {
   typ: 'firemne_doma' | 'firemne_zahranicie'
 }
 
+function generateDocNumber(lastDocNumber: number): string {
+  const year = new Date().getFullYear()
+  const next = lastDocNumber + 1
+  return `${year}-${String(next).padStart(3, '0')}`
+}
+
 export default function VyuctovanieFiremne({ typ }: Props) {
   const [vozidla, setVozidla] = useState<Vozidlo[]>([])
   const [paliva, setPaliva] = useState<Paliva | null>(null)
+  const [settings, setSettings] = useState<Settings | null>(null)
+  const [docNumber, setDocNumber] = useState('')
   const [form, setForm] = useState({
     meno: '',
     mesiac: '',
@@ -46,6 +54,10 @@ export default function VyuctovanieFiremne({ typ }: Props) {
   useEffect(() => {
     window.electronAPI.vozidla.getAll().then(setVozidla)
     window.electronAPI.paliva.get().then(setPaliva)
+    window.electronAPI.settings.get().then((s) => {
+      setSettings(s)
+      setDocNumber(generateDocNumber(s.lastDocNumber))
+    })
   }, [])
 
   useEffect(() => {
@@ -77,10 +89,13 @@ export default function VyuctovanieFiremne({ typ }: Props) {
   }
 
   const handleSaveRecord = async () => {
-    if (!result) return
+    if (!result || !settings) return
+    const newNumber = settings.lastDocNumber + 1
+    const cislo = generateDocNumber(settings.lastDocNumber)
     const allRecords = await window.electronAPI.vyuctovanie.getAll()
     const record: VyuctovanieZaznam = {
       id: uuidv4(),
+      cislo_dokladu: cislo,
       typ,
       meno: form.meno,
       mesiac: form.mesiac,
@@ -96,6 +111,10 @@ export default function VyuctovanieFiremne({ typ }: Props) {
       vytvorene: new Date().toISOString(),
     }
     await window.electronAPI.vyuctovanie.save([...allRecords, record])
+    const updatedSettings = { ...settings, lastDocNumber: newNumber }
+    await window.electronAPI.settings.save(updatedSettings)
+    setSettings(updatedSettings)
+    setDocNumber(generateDocNumber(newNumber))
     alert('Záznam uložený!')
   }
 
@@ -104,14 +123,26 @@ export default function VyuctovanieFiremne({ typ }: Props) {
   const handlePDF = () => {
     if (!result || !selectedVozidlo) return
     const doc = new jsPDF()
-    doc.setFontSize(16)
-    doc.text('VYÚČTOVANIE CESTOVNÝCH NÁHRAD', 105, 20, { align: 'center' })
-    doc.setFontSize(11)
-    doc.text(`Typ: ${typLabels[typ]}`, 14, 35)
-    doc.text(`Mesiac: ${form.mesiac}`, 14, 42)
+    let yPos = 15
+    if (settings?.companyName) {
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text(settings.companyName, 105, yPos, { align: 'center' })
+      yPos += 10
+    }
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text('VYÚČTOVANIE CESTOVNÝCH NÁHRAD', 105, yPos, { align: 'center' })
+    yPos += 8
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Doklad č.: ${docNumber}`, 105, yPos, { align: 'center' })
+    yPos += 5
+    doc.text(`${typLabels[typ]} · ${form.mesiac}`, 105, yPos, { align: 'center' })
+    yPos += 10
 
     autoTable(doc, {
-      startY: 50,
+      startY: yPos,
       head: [['Meno', 'Trasa', 'KM', 'Vozidlo', 'ŠPZ', 'PHM', 'Spotreba (l)', 'Cena/L (€)', 'Náklady (€)']],
       body: [[
         form.meno,
@@ -128,12 +159,12 @@ export default function VyuctovanieFiremne({ typ }: Props) {
       headStyles: { fillColor: [40, 52, 224] },
     })
 
-    const finalY = (doc as unknown as Record<string, number>).lastAutoTable?.finalY || 80
+    const finalY = ((doc as unknown as Record<string, unknown>).lastAutoTable as Record<string, number>)?.finalY || 80
     doc.setFontSize(9)
     doc.text(`Dátum vytvorenia: ${new Date().toLocaleDateString('sk-SK')}`, 14, finalY + 20)
     doc.text('Podpis: ___________________________', 14, finalY + 30)
 
-    doc.save(`vyuctovanie_${typ}_${form.mesiac || 'export'}.pdf`)
+    doc.save(`vyuctovanie_${docNumber}_${typ}.pdf`)
   }
 
   const trasa = `${form.odchod_z}${form.cez ? ' → ' + form.cez : ''} → ${form.prichod_do}`
@@ -144,6 +175,14 @@ export default function VyuctovanieFiremne({ typ }: Props) {
 
       <div className="bg-white rounded-card shadow-sm border border-gray-100 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Číslo dokladu</label>
+            <input
+              value={docNumber}
+              readOnly
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 font-mono cursor-not-allowed"
+            />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Meno</label>
             <input
@@ -286,7 +325,13 @@ export default function VyuctovanieFiremne({ typ }: Props) {
       {result && (
         <div ref={printRef}>
           <div className="bg-white rounded-card shadow-sm border border-gray-100 p-6">
+            {settings?.companyName && (
+              <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">{settings.companyName}</h2>
+            )}
             <h3 className="text-lg font-bold text-gray-900 mb-1 text-center">VYÚČTOVANIE CESTOVNÝCH NÁHRAD</h3>
+            <p className="text-sm text-gray-500 text-center">
+              Doklad č.: {docNumber}
+            </p>
             <p className="text-sm text-gray-500 text-center mb-4">
               {typLabels[typ]} · {form.mesiac}
             </p>

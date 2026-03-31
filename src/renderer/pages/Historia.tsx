@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Trash2, Eye, Printer, X } from 'lucide-react'
 import { useReactToPrint } from 'react-to-print'
-import type { Vozidlo, VyuctovanieZaznam } from '../types'
+import type { Vozidlo, VyuctovanieZaznam, Settings } from '../types'
 
 const typLabels: Record<string, string> = {
   firemne_doma: 'Firemné auto: Doma',
@@ -21,6 +21,7 @@ const palivoLabels: Record<string, string> = {
 export default function Historia() {
   const [zaznamy, setZaznamy] = useState<VyuctovanieZaznam[]>([])
   const [vozidla, setVozidla] = useState<Vozidlo[]>([])
+  const [settings, setSettings] = useState<Settings | null>(null)
   const [filterTyp, setFilterTyp] = useState('')
   const [filterMesiac, setFilterMesiac] = useState('')
   const [detail, setDetail] = useState<VyuctovanieZaznam | null>(null)
@@ -29,6 +30,7 @@ export default function Historia() {
   useEffect(() => {
     window.electronAPI.vyuctovanie.getAll().then(setZaznamy)
     window.electronAPI.vozidla.getAll().then(setVozidla)
+    window.electronAPI.settings.get().then(setSettings)
   }, [])
 
   const handleDelete = async (id: string) => {
@@ -92,6 +94,7 @@ export default function Historia() {
         <table className="w-full table-striped">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Č. dokladu</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Typ</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Meno</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Mesiac</th>
@@ -105,13 +108,14 @@ export default function Historia() {
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-center py-12 text-gray-400">
+                <td colSpan={9} className="text-center py-12 text-gray-400">
                   Žiadne záznamy.
                 </td>
               </tr>
             )}
             {filtered.map((z) => (
               <tr key={z.id} className="border-b border-gray-100">
+                <td className="px-4 py-3 text-sm font-mono text-gray-700">{z.cislo_dokladu || '-'}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{typLabels[z.typ]}</td>
                 <td className="px-4 py-3 text-sm font-medium text-gray-900">{z.meno}</td>
                 <td className="px-4 py-3 text-sm text-gray-600">{z.mesiac}</td>
@@ -151,7 +155,13 @@ export default function Historia() {
 
             <div ref={printRef}>
               <div className="p-4">
+                {settings?.companyName && (
+                  <h2 className="text-xl font-bold text-gray-900 mb-1 text-center">{settings.companyName}</h2>
+                )}
                 <h3 className="text-lg font-bold text-gray-900 mb-1 text-center">VYÚČTOVANIE CESTOVNÝCH NÁHRAD</h3>
+                <p className="text-sm text-gray-500 text-center">
+                  Doklad č.: {detail.cislo_dokladu || '-'}
+                </p>
                 <p className="text-sm text-gray-500 text-center mb-4">
                   {typLabels[detail.typ]} · {detail.mesiac}
                 </p>

@@ -13,4 +13,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAll: () => ipcRenderer.invoke('vyuctovanie:getAll'),
     save: (data: unknown) => ipcRenderer.invoke('vyuctovanie:save', data),
   },
+  settings: {
+    get: () => ipcRenderer.invoke('settings:get'),
+    save: (data: unknown) => ipcRenderer.invoke('settings:save', data),
+  },
 })

@@ -5,6 +5,7 @@ import Paliva from './pages/Paliva'
 import VyuctovanieFiremne from './pages/VyuctovanieFiremne'
 import VyuctovanieSukromne from './pages/VyuctovanieSukromne'
 import Historia from './pages/Historia'
+import Nastavenia from './pages/Nastavenia'
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/vyuctovanie/sukromne-doma" element={<VyuctovanieSukromne typ="sukromne_doma" />} />
         <Route path="/vyuctovanie/sukromne-zahranicie" element={<VyuctovanieSukromne typ="sukromne_zahranicie" />} />
         <Route path="/historia" element={<Historia />} />
+        <Route path="/nastavenia" element={<Nastavenia />} />
       </Route>
     </Routes>
   )

@@ -21,6 +21,7 @@ export interface Paliva {
 
 export interface VyuctovanieZaznam {
   id: string
+  cislo_dokladu: string
   typ: 'firemne_doma' | 'firemne_zahranicie' | 'sukromne_doma' | 'sukromne_zahranicie'
   meno: string
   mesiac: string
@@ -36,6 +37,11 @@ export interface VyuctovanieZaznam {
   vytvorene: string
 }
 
+export interface Settings {
+  lastDocNumber: number
+  companyName: string
+}
+
 export interface ElectronAPI {
   vozidla: {
     getAll: () => Promise<Vozidlo[]>
@@ -48,6 +54,10 @@ export interface ElectronAPI {
   vyuctovanie: {
     getAll: () => Promise<VyuctovanieZaznam[]>
     save: (data: VyuctovanieZaznam[]) => Promise<boolean>
+  }
+  settings: {
+    get: () => Promise<Settings>
+    save: (data: Settings) => Promise<boolean>
   }
 }
 
